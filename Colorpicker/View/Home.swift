@@ -8,6 +8,13 @@
 import SwiftUI
 
 struct Home: View {
+    
+    @State var currentItem: ColorValue?
+    @State var expandCard: Bool = false
+    @State var moveCardDown: Bool = false
+    
+    @Namespace var animation
+    
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
@@ -43,13 +50,60 @@ struct Home: View {
                 
             }
             .ignoresSafeArea(.container, edges: .all)
+            .overlay {
+                if let currentItem, expandCard {
+                    DetailView(item: currentItem, rectSize: size)
+                        .transition(.asymmetric(insertion: .identity, removal: .offset(y: 10)))
+                }
+            }
         }
         .frame(width: 380, height: 500)
         .preferredColorScheme(.light)
     }
     
     @ViewBuilder
+    func DetailView(item: ColorValue, rectSize: CGSize) -> some View {
+        ColorView(item: item, rectSize: rectSize)
+            .ignoresSafeArea()
+            .overlay(alignment: .top) {
+                
+            }
+    }
+    
+    @ViewBuilder
     func CardView(item: ColorValue, rectSize: CGSize) -> some View {
+        let tappedCard = item.id == currentItem?.id && moveCardDown
+        
+        if !(item.id == currentItem?.id && expandCard) {
+            ColorView(item: item, rectSize: rectSize)
+                .overlay(content: {
+                    ColorDetails(item: item)
+                })
+                .frame(height: 110)
+                .contentShape(Rectangle())
+                .offset(y: tappedCard ? 30 : 0)
+                .zIndex(tappedCard ? 100 : 0)
+                .onTapGesture {
+                    currentItem = item
+                    withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.4, blendDuration: 0.4)) {
+                        moveCardDown = true
+                    }
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+                        withAnimation(.interactiveSpring(response: 0.4, dampingFraction: 1, blendDuration: 1)) {
+                            expandCard = true
+                        }
+                    }
+                }
+        } else {
+            Rectangle()
+                .foregroundColor(.clear)
+                .frame(height: 110)
+        }
+    }
+    
+    @ViewBuilder
+    func ColorView(item: ColorValue, rectSize: CGSize) -> some View {
         Rectangle()
             .overlay {
                 Rectangle()
@@ -65,11 +119,7 @@ struct Home: View {
                     .fill(item.color.opacity(0.5).gradient)
                     .rotationEffect(.init(degrees: 180))
             }
-            .overlay(content: {
-                ColorDetails(item: item)
-            })
-            
-            .frame(height: 110)
+            .matchedGeometryEffect(id: item.id.uuidString, in: animation)
     }
     
     @ViewBuilder
